@@ -1,11 +1,11 @@
 """
 analyzer/metadata_analyzer.py
-Extracts and evaluates document metadata from PDF and DOCX files.
+Extracts and evaluates document metadata and exposed personal content from PDF and DOCX files.
 
 SECURITY REQUIREMENTS:
 - Uploaded content is NEVER executed.
-- Files are processed in memory or from a secure temp path.
-- The module only reads metadata fields; it never reads or returns file body text.
+- Files are processed in memory or from a secure temp path and immediately deleted.
+- The module extracts metadata properties and audits for personal identifying information (PII).
 - Temporary files must be deleted by the caller after this module returns.
 """
 
@@ -15,40 +15,53 @@ import os
 import re
 from typing import Optional
 
-from analyzer.patterns import SENSITIVE_FILENAME_KEYWORDS
+from analyzer.patterns import (
+    ADDRESS_PATTERNS,
+    DATE_OF_BIRTH_PATTERNS,
+    EMAIL_PATTERN,
+    PHONE_PATTERN,
+    SENSITIVE_FILENAME_KEYWORDS,
+)
 from analyzer.recommendations import get_recommendation
 from analyzer.risk_scoring import build_finding
 
 
 def analyze_document_metadata(filepath: str, original_filename: str) -> list[dict]:
     """
-    Extract and analyze metadata from a PDF or DOCX file.
+    Extract and analyze metadata and personal data from a PDF or DOCX file.
 
     Args:
         filepath: Absolute path to the securely stored temp file.
         original_filename: The original filename supplied by the user.
 
     Returns:
-        A list of finding dicts (may be empty).
+        A list of finding dicts.
     """
     findings: list[dict] = []
 
     # 1. Filename sensitivity check
     findings.extend(_check_filename(original_filename))
 
-    # 2. Extension-based dispatch
+    # 2. Extension-based dispatch & metadata extraction
     ext = os.path.splitext(original_filename)[1].lower()
+    meta: dict = {}
+    text_content: str = ""
+
     if ext == ".pdf":
-        meta = _extract_pdf_metadata(filepath)
+        meta, text_content = _extract_pdf_data(filepath)
     elif ext == ".docx":
-        meta = _extract_docx_metadata(filepath)
-    else:
-        meta = {}
+        meta, text_content = _extract_docx_data(filepath)
 
     # 3. Analyze extracted metadata fields
     if meta:
         findings.extend(_check_author(meta))
         findings.extend(_check_software(meta))
+        findings.extend(_check_timestamps(meta))
+        findings.extend(_check_title(meta))
+
+    # 4. Analyze extracted text content for personal data
+    if text_content:
+        findings.extend(_check_document_text(text_content))
 
     return findings
 
@@ -87,7 +100,7 @@ def _check_filename(filename: str) -> list[dict]:
 
 def _check_author(meta: dict) -> list[dict]:
     findings = []
-    author_fields = ["author", "creator", "last_modified_by", "dc:creator"]
+    author_fields = ["author", "creator", "last_modified_by", "dc:creator", "dc_creator"]
     authors_found = []
     for field in author_fields:
         val = meta.get(field, "")
@@ -123,7 +136,7 @@ def _check_author(meta: dict) -> list[dict]:
 
 def _check_software(meta: dict) -> list[dict]:
     findings = []
-    software_fields = ["producer", "creator_tool", "application", "dc:format"]
+    software_fields = ["producer", "creator_tool", "application", "dc:format", "xmp_creatortool", "pdf_producer"]
     software_found = []
     for field in software_fields:
         val = meta.get(field, "")
@@ -155,59 +168,236 @@ def _check_software(meta: dict) -> list[dict]:
     return findings
 
 
+# ── Timestamp metadata ────────────────────────────────────────────────────────
+
+def _check_timestamps(meta: dict) -> list[dict]:
+    findings = []
+    ts_fields = ["creationdate", "moddate", "created", "modified"]
+    found = []
+    for k in ts_fields:
+        v = meta.get(k)
+        if v and isinstance(v, str) and v.strip():
+            found.append(f"{k}: {v.strip()}")
+    if found:
+        rec = get_recommendation("DOC_TIMESTAMP_METADATA")
+        findings.append(
+            build_finding(
+                rule_id="DOC_TIMESTAMP_METADATA",
+                title="Creation / modification timestamp in metadata",
+                category="Sensitive Document Indicators",
+                severity="low",
+                evidence="; ".join(found[:2]),
+                explanation=(
+                    "Document metadata contains precise creation and modification timestamps, "
+                    "often revealing your editing hours, revision cadence, and timezone."
+                ),
+                consequence="Timestamps can reveal operational schedules and geographic location.",
+                recommendation_action=rec["action"],
+                recommendation_detail=rec["detail"],
+            )
+        )
+    return findings
+
+
+# ── Title metadata ────────────────────────────────────────────────────────────
+
+def _check_title(meta: dict) -> list[dict]:
+    findings = []
+    title_fields = ["title", "subject", "dc:title", "dc:subject", "dc_title"]
+    found = []
+    for k in title_fields:
+        v = meta.get(k)
+        if v and isinstance(v, str) and v.strip() and v.strip().lower() not in ["untitled", "document"]:
+            found.append(f"{k}: {v.strip()}")
+    if found:
+        rec = get_recommendation("DOC_TITLE_METADATA")
+        findings.append(
+            build_finding(
+                rule_id="DOC_TITLE_METADATA",
+                title="Document title or subject in metadata",
+                category="Sensitive Document Indicators",
+                severity="low",
+                evidence="; ".join(found[:2]),
+                explanation=(
+                    "Internal document titles and subjects may expose internal project codes, "
+                    "client names, or sensitive document classifications."
+                ),
+                consequence="Recipients can read the internal title even if omitted from the cover page.",
+                recommendation_action=rec["action"],
+                recommendation_detail=rec["detail"],
+            )
+        )
+    return findings
+
+
+# ── Document text personal data checks ────────────────────────────────────────
+
+def _check_document_text(text: str) -> list[dict]:
+    findings = []
+    if not text or len(text.strip()) < 5:
+        return findings
+
+    # Check for email
+    emails = EMAIL_PATTERN.findall(text)
+    if emails:
+        rec = get_recommendation("DOC_TEXT_EMAIL_EXPOSURE")
+        unique_emails = list(dict.fromkeys(emails))[:3]
+        findings.append(
+            build_finding(
+                rule_id="DOC_TEXT_EMAIL_EXPOSURE",
+                title="Email address detected in document content",
+                category="Contact Info",
+                severity="medium",
+                evidence=f"Found in text: {', '.join(unique_emails)}",
+                explanation="The document text contains direct personal or professional email addresses.",
+                consequence="Sharing this document publicly exposes these email addresses to spam and spear-phishing.",
+                recommendation_action=rec["action"],
+                recommendation_detail=rec["detail"],
+            )
+        )
+
+    # Check for phone
+    phones = PHONE_PATTERN.findall(text)
+    valid_phones = [p.strip() for p in phones if len(re.sub(r"\D", "", p)) >= 9]
+    if valid_phones:
+        rec = get_recommendation("DOC_TEXT_PHONE_EXPOSURE")
+        unique_phones = list(dict.fromkeys(valid_phones))[:2]
+        findings.append(
+            build_finding(
+                rule_id="DOC_TEXT_PHONE_EXPOSURE",
+                title="Phone number detected in document content",
+                category="Contact Info",
+                severity="high",
+                evidence=f"Found in text: {', '.join(unique_phones)}",
+                explanation="The document contains telephone numbers that can be used for SMS phishing or social engineering.",
+                consequence="Phone numbers facilitate SIM-swap attacks and direct targeted social engineering.",
+                recommendation_action=rec["action"],
+                recommendation_detail=rec["detail"],
+            )
+        )
+
+    # Check for DOB
+    dob_found = []
+    for pat in DATE_OF_BIRTH_PATTERNS:
+        matches = pat.findall(text)
+        if matches:
+            for m in matches:
+                dob_found.append(m if isinstance(m, str) else str(m[0]))
+    if dob_found:
+        rec = get_recommendation("DOC_TEXT_DOB_EXPOSURE")
+        findings.append(
+            build_finding(
+                rule_id="DOC_TEXT_DOB_EXPOSURE",
+                title="Date of birth pattern in document content",
+                category="Personal Identity",
+                severity="high",
+                evidence=f"Found in text: {dob_found[0]}",
+                explanation="Full dates of birth are knowledge-based identity verification factors.",
+                consequence="Attackers can use dates of birth to impersonate you with financial institutions.",
+                recommendation_action=rec["action"],
+                recommendation_detail=rec["detail"],
+            )
+        )
+
+    # Check for Address
+    for pat in ADDRESS_PATTERNS:
+        m = pat.search(text)
+        if m:
+            rec = get_recommendation("DOC_TEXT_ADDRESS_EXPOSURE")
+            findings.append(
+                build_finding(
+                    rule_id="DOC_TEXT_ADDRESS_EXPOSURE",
+                    title="Physical address or postal code in document",
+                    category="Location Exposure",
+                    severity="medium",
+                    evidence=f"Found pattern: {m.group(0)}",
+                    explanation="Physical home or office address indicators were detected in the document body.",
+                    consequence="Exposing your physical address enables physical security risks and OSINT correlation.",
+                    recommendation_action=rec["action"],
+                    recommendation_detail=rec["detail"],
+                )
+            )
+            break
+
+    return findings
+
+
 # ── PDF extraction ────────────────────────────────────────────────────────────
 
-def _extract_pdf_metadata(filepath: str) -> dict:
+def _extract_pdf_data(filepath: str) -> tuple[dict, str]:
     """
-    Extract PDF metadata using pypdf (preferred) or pdfminer as fallback.
-    Returns a flat dict of field_name → value strings.
-    Never returns body text.
+    Extract PDF metadata and readable text.
+    Handles lazy pypdf references while file is open, plus raw string regex fallback.
     """
     meta: dict = {}
+    text_parts: list[str] = []
+
+    # 1. Primary: pypdf (file handle MUST remain open while accessing reader.metadata)
     try:
         import pypdf  # type: ignore
         with open(filepath, "rb") as f:
             reader = pypdf.PdfReader(f, strict=False)
-        info = reader.metadata or {}
-        for k, v in info.items():
-            key = k.lstrip("/").lower()
-            if isinstance(v, str):
-                meta[key] = v
-            elif hasattr(v, "__str__"):
-                meta[key] = str(v)
-        return meta
-    except ImportError:
+            info = reader.metadata
+            if info:
+                for k, v in info.items():
+                    if k:
+                        key = str(k).lstrip("/").lower()
+                        val = str(v).strip() if v is not None else ""
+                        if val:
+                            meta[key] = val
+
+            # XMP metadata if available
+            try:
+                if hasattr(reader, "xmp_metadata") and reader.xmp_metadata:
+                    xmp = reader.xmp_metadata
+                    for attr in ["dc_creator", "dc_title", "xmp_creatortool", "pdf_producer"]:
+                        val = getattr(xmp, attr, None)
+                        if val:
+                            if isinstance(val, list) and val:
+                                meta[attr.replace("_", ":")] = str(val[0])
+                            elif isinstance(val, str) and val.strip():
+                                meta[attr.replace("_", ":")] = val.strip()
+            except Exception:
+                pass
+
+            # Extract text from first 10 pages
+            try:
+                for page in reader.pages[:10]:
+                    txt = page.extract_text()
+                    if txt:
+                        text_parts.append(txt)
+            except Exception:
+                pass
+    except Exception:
         pass
-    except Exception:
-        return {}
 
-    # Fallback: pdfminer
+    # 2. Raw fallback: regex parse PDF header/trailers if metadata was missing or pypdf failed
     try:
-        from pdfminer.high_level import extract_pages  # type: ignore
-        from pdfminer.pdfparser import PDFParser
-        from pdfminer.pdfdocument import PDFDocument
-
         with open(filepath, "rb") as f:
-            parser = PDFParser(f)
-            doc = PDFDocument(parser)
-            for info_dict in doc.info:
-                for k, v in info_dict.items():
-                    key = k.lower()
-                    if isinstance(v, bytes):
-                        v = v.decode("utf-8", errors="replace")
-                    meta[key] = str(v)
-        return meta
+            raw_bytes = f.read(300000)
+            raw_text = raw_bytes.decode("latin1", errors="ignore")
+
+            for tag in ["author", "creator", "producer", "title", "creationdate", "moddate"]:
+                if tag not in meta:
+                    m = re.search(r"/" + tag + r"\s*\(([^)]+)\)", raw_text, re.IGNORECASE)
+                    if m:
+                        meta[tag] = m.group(1).strip()
     except Exception:
-        return {}
+        pass
+
+    return meta, " ".join(text_parts)
 
 
 # ── DOCX extraction ───────────────────────────────────────────────────────────
 
-def _extract_docx_metadata(filepath: str) -> dict:
+def _extract_docx_data(filepath: str) -> tuple[dict, str]:
     """
-    Extract DOCX core properties. Returns a flat dict. Never returns body text.
+    Extract DOCX core properties and text content.
     """
     meta: dict = {}
+    text_parts: list[str] = []
+
+    # 1. Primary: python-docx
     try:
         from docx import Document  # type: ignore
         doc = Document(filepath)
@@ -215,7 +405,9 @@ def _extract_docx_metadata(filepath: str) -> dict:
         field_map = {
             "author": props.author,
             "last_modified_by": props.last_modified_by,
-            "creator": props.author,          # same source, different label
+            "creator": props.author,
+            "title": props.title,
+            "subject": props.subject,
             "application": getattr(props, "application", None),
             "created": str(props.created) if props.created else None,
             "modified": str(props.modified) if props.modified else None,
@@ -223,8 +415,31 @@ def _extract_docx_metadata(filepath: str) -> dict:
         for k, v in field_map.items():
             if v and str(v).strip():
                 meta[k] = str(v).strip()
-        return meta
-    except ImportError:
-        return {}
+
+        for p in doc.paragraphs[:50]:
+            if p.text:
+                text_parts.append(p.text)
     except Exception:
-        return {}
+        pass
+
+    # 2. Fallback: direct ZIP XML extraction
+    if not meta:
+        try:
+            import zipfile
+            import xml.etree.ElementTree as ET
+            with zipfile.ZipFile(filepath, "r") as z:
+                if "docProps/core.xml" in z.namelist():
+                    core_xml = z.read("docProps/core.xml")
+                    root = ET.fromstring(core_xml)
+                    for elem in root:
+                        tag_name = elem.tag.split("}")[-1].lower()
+                        if elem.text and elem.text.strip():
+                            meta[tag_name] = elem.text.strip()
+                if "word/document.xml" in z.namelist() and not text_parts:
+                    doc_xml = z.read("word/document.xml")
+                    root = ET.fromstring(doc_xml)
+                    text_parts = [elem.text for elem in root.iter() if elem.text]
+        except Exception:
+            pass
+
+    return meta, " ".join(text_parts)

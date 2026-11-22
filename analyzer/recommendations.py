@@ -76,7 +76,7 @@ RECOMMENDATIONS: dict[str, dict] = {
             "services. Even minor variations (e.g., adding a number) reduce linkability."
         ),
     },
-    # Document metadata
+    # Document metadata & content
     "DOC_SENSITIVE_FILENAME": {
         "action": "Rename files before sharing so the filename reveals no sensitive context.",
         "detail": (
@@ -97,6 +97,48 @@ RECOMMENDATIONS: dict[str, dict] = {
         "detail": (
             "The software version used to create a document can reveal information "
             "about your system that attackers may exploit for targeted attacks."
+        ),
+    },
+    "DOC_TIMESTAMP_METADATA": {
+        "action": "Scrub creation and modification timestamps before distributing documents.",
+        "detail": (
+            "Embedded timestamps reveal when files were created, edited, and the author's local timezone."
+        ),
+    },
+    "DOC_TITLE_METADATA": {
+        "action": "Clear document title and subject properties.",
+        "detail": (
+            "Internal project names, client names, or sensitive document classifications can leak via metadata title fields."
+        ),
+    },
+    "DOC_TEXT_EMAIL_EXPOSURE": {
+        "action": "Redact email addresses from public documents.",
+        "detail": (
+            "Email addresses embedded in shared documents are easily harvested by web scrapers and phishing operators."
+        ),
+    },
+    "DOC_TEXT_PHONE_EXPOSURE": {
+        "action": "Redact phone numbers before sharing documents publicly.",
+        "detail": (
+            "Phone numbers found in documents expose individuals to SMS phishing and social engineering."
+        ),
+    },
+    "DOC_TEXT_DOB_EXPOSURE": {
+        "action": "Remove full dates of birth from public documents.",
+        "detail": (
+            "Dates of birth are primary factors in identity theft and knowledge-based security verification."
+        ),
+    },
+    "DOC_TEXT_ADDRESS_EXPOSURE": {
+        "action": "Remove residential addresses from documents before sharing.",
+        "detail": (
+            "Physical addresses reveal personal residence locations and increase physical and digital security risks."
+        ),
+    },
+    "DOC_CLEAN_ASSESSMENT": {
+        "action": "Document is clean and properly sanitized.",
+        "detail": (
+            "No sensitive embedded metadata or personal identifying information was detected in this file."
         ),
     },
     # URL indicators

@@ -189,3 +189,64 @@ class TestExposureEngine:
             'profile_text': 'DOB: 01/01/1990, 42 Test Street, London SW1A 2AA',
         })
         assert 'PERSONAL_MULTI_ATTRIBUTE' in self._get_rule_ids(findings)
+
+
+# ── Document Metadata Analyzer tests ──────────────────────────────────────────
+
+class TestDocumentMetadataAnalyzer:
+    def test_sensitive_filename(self):
+        from analyzer.metadata_analyzer import analyze_document_metadata
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+            findings = analyze_document_metadata(tmp.name, "salary_confidential_2026.pdf")
+            rule_ids = [f["rule_id"] for f in findings]
+            assert "DOC_SENSITIVE_FILENAME" in rule_ids
+
+    def test_pdf_metadata_extraction(self):
+        from analyzer.metadata_analyzer import analyze_document_metadata
+        import tempfile
+        import pypdf
+
+        writer = pypdf.PdfWriter()
+        writer.add_blank_page(width=72, height=72)
+        writer.add_metadata({
+            "/Author": "Secret Agent",
+            "/Producer": "ReportGenerator 4.0",
+            "/Title": "Classified Strategy",
+        })
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            writer.write(tmp)
+            tmp_path = tmp.name
+
+        try:
+            findings = analyze_document_metadata(tmp_path, "normal_doc.pdf")
+            rule_ids = [f["rule_id"] for f in findings]
+            assert "DOC_AUTHOR_METADATA" in rule_ids
+            assert "DOC_SOFTWARE_METADATA" in rule_ids
+            assert "DOC_TITLE_METADATA" in rule_ids
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+    def test_clean_document(self):
+        from analyzer.metadata_analyzer import analyze_document_metadata
+        import tempfile
+        import pypdf
+
+        writer = pypdf.PdfWriter()
+        writer.add_blank_page(width=72, height=72)
+        # Clear default pypdf producer metadata to simulate a sanitized/stripped document
+        if hasattr(writer, "_info") and writer._info:
+            writer._info.clear()
+
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            writer.write(tmp)
+            tmp_path = tmp.name
+
+        try:
+            findings = analyze_document_metadata(tmp_path, "clean_sample.pdf")
+            assert len(findings) == 0
+        finally:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+

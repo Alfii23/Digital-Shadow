@@ -208,3 +208,39 @@ class TestReportEndpoint:
     def test_delete_invalid_uuid_returns_400(self, client):
         res = client.delete('/api/report/bad-id')
         assert res.status_code == 400
+
+
+# ── /api/analyze-document ─────────────────────────────────────────────────────
+
+class TestAnalyzeDocumentEndpoint:
+    def test_missing_file_returns_400(self, client):
+        res = client.post('/api/analyze-document')
+        assert res.status_code == 400
+
+    def test_unsupported_extension_returns_400(self, client):
+        import io
+        data = {'document': (io.BytesIO(b'hello'), 'test.txt')}
+        res = client.post('/api/analyze-document', data=data, content_type='multipart/form-data')
+        assert res.status_code == 400
+
+    def test_valid_pdf_upload_returns_report(self, client):
+        import io
+        import pypdf
+        writer = pypdf.PdfWriter()
+        writer.add_blank_page(width=72, height=72)
+        writer.add_metadata({'/Author': 'Analyst X', '/Producer': 'TestPDF'})
+        buf = io.BytesIO()
+        writer.write(buf)
+        buf.seek(0)
+
+        data = {'document': (buf, 'resume.pdf')}
+        res = client.post('/api/analyze-document', data=data, content_type='multipart/form-data')
+        assert res.status_code == 200
+        import json
+        payload = json.loads(res.data)
+        assert 'findings' in payload
+        assert 'scoring' in payload
+        assert 'severity_counts' in payload
+        assert payload['total_findings'] >= 1
+        assert payload['scoring']['total_score'] > 0
+
