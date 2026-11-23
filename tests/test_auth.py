@@ -116,15 +116,56 @@ class TestLoginRoutes:
         assert res.headers["Location"].endswith("/")
 
     def test_logout_clears_session(self, client):
-        """GET /logout should clear the user session and redirect to /."""
+        """GET /logout should clear the user session and redirect to /login."""
         with client.session_transaction() as sess:
             sess["user"] = {"username": "temp_user"}
 
         res = client.get("/logout", follow_redirects=False)
         assert res.status_code == 302
+        assert res.headers["Location"].endswith("/login")
 
         with client.session_transaction() as sess:
             assert "user" not in sess
+
+    def test_unauthenticated_redirects_to_login_when_required(self):
+        """When REQUIRE_LOGIN is enabled, unauthenticated visits to / must redirect to /login."""
+        app = create_app("testing")
+        app.config["REQUIRE_LOGIN"] = True
+        with app.test_client() as c:
+            res = c.get("/", follow_redirects=False)
+            assert res.status_code == 302
+            assert res.headers["Location"].endswith("/login")
+
+            # Follow redirect lands on login page
+            follow = c.get("/", follow_redirects=True)
+            assert follow.status_code == 200
+            assert b"Sign In to Continue" in follow.data or b"Sign In" in follow.data
+
+    def test_authenticated_user_can_access_home_when_required(self):
+        """When user is logged in, visiting / should return HTTP 200."""
+        app = create_app("testing")
+        app.config["REQUIRE_LOGIN"] = True
+        with app.test_client() as c:
+            with c.session_transaction() as sess:
+                sess["user"] = {"username": "sec_auditor"}
+            res = c.get("/", follow_redirects=False)
+            assert res.status_code == 200
+            assert b"Digital Shadow" in res.data
+            assert b"sec_auditor" in res.data
+
+    def test_login_redirect_preserves_next_param(self, client):
+        """POST /login with next=/about should redirect to /about upon success."""
+        res = client.post(
+            "/login?next=/about",
+            data={
+                "username": "analyst",
+                "password": "valid_password",
+                "next": "/about",
+            },
+            follow_redirects=False,
+        )
+        assert res.status_code == 302
+        assert res.headers["Location"].endswith("/about")
 
     def test_sitemap_includes_login(self, client):
         """sitemap.xml must include the /login page."""

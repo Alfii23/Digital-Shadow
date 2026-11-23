@@ -101,6 +101,8 @@ def create_app(env: str | None = None) -> Flask:
 
     @app.route("/")
     def index():
+        if app.config.get("REQUIRE_LOGIN", True) and not session.get("user"):
+            return redirect(url_for("login"))
         return render_template("index.html")
 
     @app.route("/about")
@@ -109,8 +111,12 @@ def create_app(env: str | None = None) -> Flask:
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        next_page = request.args.get("next") or request.form.get("next") or url_for("index")
+        if not next_page.startswith("/") or next_page.startswith("//"):
+            next_page = url_for("index")
+
         if request.method == "GET" and session.get("user"):
-            return redirect(url_for("index"))
+            return redirect(next_page)
 
         if request.method == "POST":
             if request.is_json:
@@ -119,29 +125,34 @@ def create_app(env: str | None = None) -> Flask:
                 password = (data.get("password") or "").strip()
                 remember = bool(data.get("remember", False))
                 action = data.get("action", "login")
+                req_next = data.get("next") or next_page
             else:
                 username_or_email = (request.form.get("username") or request.form.get("email") or "").strip()
                 password = (request.form.get("password") or "").strip()
                 remember = request.form.get("remember") in ("1", "true", "on")
                 action = request.form.get("action", "login")
+                req_next = request.form.get("next") or next_page
+
+            if not req_next.startswith("/") or req_next.startswith("//"):
+                req_next = url_for("index")
 
             if not username_or_email:
                 error_msg = "Please enter your username or email address."
                 if request.is_json:
                     return jsonify(success=False, error=error_msg), 400
-                return render_template("login.html", error=error_msg), 400
+                return render_template("login.html", error=error_msg, next=req_next), 400
 
             if not password:
                 error_msg = "Please enter your password."
                 if request.is_json:
                     return jsonify(success=False, error=error_msg), 400
-                return render_template("login.html", error=error_msg), 400
+                return render_template("login.html", error=error_msg, next=req_next), 400
 
             if len(password) < 4:
                 error_msg = "Password must be at least 4 characters long."
                 if request.is_json:
                     return jsonify(success=False, error=error_msg), 400
-                return render_template("login.html", error=error_msg), 400
+                return render_template("login.html", error=error_msg, next=req_next), 400
 
             # Derive clean display handle
             user_handle = username_or_email.split("@")[0] if "@" in username_or_email else username_or_email
@@ -162,20 +173,22 @@ def create_app(env: str | None = None) -> Flask:
                     success=True,
                     user=user_session,
                     message="Authentication successful.",
-                    redirect=url_for("index"),
+                    redirect=req_next,
                 ), 200
 
-            return redirect(url_for("index"))
+            return redirect(req_next)
 
-        return render_template("login.html")
+        return render_template("login.html", next=next_page)
 
     @app.route("/logout")
     def logout():
         session.pop("user", None)
-        return redirect(url_for("index"))
+        return redirect(url_for("login"))
 
     @app.route("/report/<report_id>")
     def view_report(report_id: str):
+        if app.config.get("REQUIRE_LOGIN", True) and not session.get("user"):
+            return redirect(url_for("login", next=request.path))
         return render_template("report.html", report_id=report_id)
 
     # ── Favicon ───────────────────────────────────────────────────────────────

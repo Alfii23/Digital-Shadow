@@ -28,6 +28,13 @@
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  {% if not current_user %}
+  <script>
+    if (!window.location.pathname.startsWith('/login')) {
+      window.location.replace("{{ url_for('login') }}");
+    }
+  </script>
+  {% endif %}
 </head>
 <body>
 

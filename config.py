@@ -30,6 +30,7 @@ class Config:
         os.path.join(os.path.dirname(__file__), "digital_shadow.db"),
     )
     PERSIST_REPORTS: bool = os.environ.get("PERSIST_REPORTS", "true").lower() == "true"
+    REQUIRE_LOGIN: bool = os.environ.get("REQUIRE_LOGIN", "true").lower() == "true"
 
     # ── Risk scoring thresholds ───────────────────────────────────────────────
     SCORE_LOW_MAX: int = 19
@@ -72,6 +73,7 @@ class TestingConfig(Config):
     DATABASE_PATH = ":memory:"
     PERSIST_REPORTS = False
     SECRET_KEY = "test-secret-key-not-for-production"
+    REQUIRE_LOGIN = False
 
 
 config_map = {

@@ -54,6 +54,16 @@ document.addEventListener('DOMContentLoaded', () => {
   bindActionButtons();
   initFileUpload();
   updateAnalyzeButtonState();
+
+  // Welcome toast on fresh authentication
+  try {
+    if (sessionStorage.getItem('ds_just_logged_in')) {
+      sessionStorage.removeItem('ds_just_logged_in');
+      setTimeout(() => {
+        showToast('🛡️ Authentication verified. Secure workspace active.', 'success');
+      }, 350);
+    }
+  } catch (e) {}
 });
 
 // ── URL list manager ──────────────────────────────────────────────────────────

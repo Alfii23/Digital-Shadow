@@ -67,11 +67,11 @@
       <div class="auth-header">
         <div class="auth-shield-wrap" aria-hidden="true">🛡</div>
         <div class="auth-eyebrow">
-          <span>🔒 Zero-Knowledge Security</span>
+          <span>🔒 Authentication Required</span>
         </div>
-        <h1 class="auth-title">Welcome Back</h1>
+        <h1 class="auth-title">Sign In to Continue</h1>
         <p class="auth-subtitle">
-          Sign in to access your saved privacy evaluations, exposure vectors, and security audit logs.
+          Please authenticate or use 1-click Instant Demo Access to enter the Digital Shadow Privacy Analyzer.
         </p>
       </div>
 
@@ -97,6 +97,7 @@
       <!-- Auth Form -->
       <form id="auth-form" method="POST" action="/login" novalidate>
         <input type="hidden" name="action" id="auth-action" value="login">
+        <input type="hidden" name="next" id="auth-next" value="{{ next or '' }}">
 
         <div class="form-group" style="margin-bottom: 16px;">
           <label class="form-label" for="username">
@@ -273,6 +274,7 @@
         usernameInput.value = 'analyst';
         pwdInput.value = 'digital-shadow-demo';
         setTab('login');
+        try { sessionStorage.setItem('ds_just_logged_in', '1'); } catch (e) {}
         authForm.submit();
       });
     }
@@ -310,6 +312,8 @@
 
         if (!valid) {
           e.preventDefault();
+        } else {
+          try { sessionStorage.setItem('ds_just_logged_in', '1'); } catch (e) {}
         }
       });
     }
