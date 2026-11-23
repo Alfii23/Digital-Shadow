@@ -250,3 +250,48 @@ class TestDocumentMetadataAnalyzer:
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
 
+
+# ── All 5 Benchmark Tiers Verification ────────────────────────────────────────
+
+class TestBenchmarkTiers:
+    def test_all_five_tiers_produce_exact_risk_categories(self):
+        from analyzer.metadata_analyzer import analyze_document_metadata
+        from analyzer.risk_scoring import compute_score
+        base_dir = os.path.join(os.path.dirname(__file__), "..", "static", "sample_files")
+
+        # Tier 1: Clean
+        f1 = os.path.join(base_dir, "01_CLEAN_AUDIT.pdf")
+        if os.path.exists(f1):
+            sc1 = compute_score(analyze_document_metadata(f1, "01_CLEAN_AUDIT.pdf"))
+            assert sc1["total_score"] == 0
+            assert sc1["risk_category"] == "Low"
+
+        # Tier 2: Low Risk
+        f2 = os.path.join(base_dir, "02_LOW_RISK_METADATA.pdf")
+        if os.path.exists(f2):
+            sc2 = compute_score(analyze_document_metadata(f2, "02_LOW_RISK_METADATA.pdf"))
+            assert 5 <= sc2["total_score"] <= 19
+            assert sc2["risk_category"] == "Low"
+
+        # Tier 3: Moderate Risk
+        f3 = os.path.join(base_dir, "03_MODERATE_RISK_PROFILE.pdf")
+        if os.path.exists(f3):
+            sc3 = compute_score(analyze_document_metadata(f3, "03_MODERATE_RISK_PROFILE.pdf"))
+            assert 20 <= sc3["total_score"] <= 39
+            assert sc3["risk_category"] == "Moderate"
+
+        # Tier 4: High Risk
+        f4 = os.path.join(base_dir, "04_HIGH_RISK_CONTACT_LOCATION.pdf")
+        if os.path.exists(f4):
+            sc4 = compute_score(analyze_document_metadata(f4, "04_HIGH_RISK_CONTACT_LOCATION.pdf"))
+            assert 40 <= sc4["total_score"] <= 69
+            assert sc4["risk_category"] == "High"
+
+        # Tier 5: Critical Risk
+        f5 = os.path.join(base_dir, "05_CRITICAL_RISK_CONFIDENTIAL_PASSWORDS.pdf")
+        if os.path.exists(f5):
+            sc5 = compute_score(analyze_document_metadata(f5, "05_CRITICAL_RISK_CONFIDENTIAL_PASSWORDS.pdf"))
+            assert sc5["total_score"] >= 70
+            assert sc5["risk_category"] == "Critical"
+
+

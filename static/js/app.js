@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindFormEvents();
   bindActionButtons();
   initFileUpload();
+  initBenchmarkLab();
   updateAnalyzeButtonState();
 
   // Welcome toast on fresh authentication
@@ -65,6 +66,93 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   } catch (e) {}
 });
+
+// ── Benchmark Lab ─────────────────────────────────────────────────────────────
+function initBenchmarkLab() {
+  const SAMPLES = {
+    clean: {
+      username: '',
+      email: '',
+      website_urls: ['https://example.com/about'],
+      profile_urls: [],
+      profile_text: 'Public security research whitepaper. General protocol specifications.',
+      label: 'Tier 1 Clean Baseline (0% Risk)'
+    },
+    low: {
+      username: '',
+      email: '',
+      website_urls: ['https://example.com/store?utm_source=spring_sale&utm_medium=email&fbclid=IwAR123'],
+      profile_urls: ['https://example.org/docs'],
+      profile_text: '',
+      label: 'Tier 2 Low Risk Vector (~10% Risk)'
+    },
+    moderate: {
+      username: 'marcus_vance',
+      email: 'marcus.vance@corporate-sample.org',
+      website_urls: ['http://insecure-portal.example.com'],
+      profile_urls: [],
+      profile_text: 'Quarterly review prepared by Marcus Vance for engineering division.',
+      label: 'Tier 3 Moderate Risk Vector (~30% Risk)'
+    },
+    high: {
+      username: 'elena_rostova',
+      email: 'elena.rostova@executive-dispatch.org',
+      website_urls: ['http://192.168.1.50:8080/dashboard'],
+      profile_urls: [],
+      profile_text: 'Elena Rostova. Contact phone: +1 (555) 234-8901. Primary address: 742 Evergreen Terrace, Springfield, IL 62704.',
+      label: 'Tier 4 High Risk Vector (~50% Risk)'
+    },
+    critical: {
+      username: 'root_admin',
+      email: 'admin@corporate-vault.net',
+      website_urls: ['https://admin:SuperSecretToken2026!@api.internal-cloud.org/v1/vault'],
+      profile_urls: ['https://github.com/root_admin', 'https://twitter.com/root_admin'],
+      profile_text: 'CONFIDENTIAL IDENTITY VAULT: Owner: Root Administrator. DOB: 14/05/1984. Direct phone: +1-555-891-2345. Permanent Residence: 10 Downing Street, London SW1A 2AA. Password Vault Key: Passw0rd!2026#RootToken.',
+      label: 'Tier 5 Critical Risk Vector (~90% Risk)'
+    }
+  };
+
+  $$('.btn-benchmark-load').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tier = btn.dataset.tier;
+      const sample = SAMPLES[tier];
+      if (!sample) return;
+
+      const uInput = $('#username');
+      const eInput = $('#email');
+      const pText  = $('#profile-text');
+      if (uInput) uInput.value = sample.username || '';
+      if (eInput) eInput.value = sample.email || '';
+      if (pText)  pText.value  = sample.profile_text || '';
+
+      const webContainer = $('#website-urls-list');
+      if (webContainer) {
+        webContainer.innerHTML = '';
+        (sample.website_urls || []).forEach(u => addUrlRow('website-urls-list', u));
+        if (!sample.website_urls || sample.website_urls.length === 0) {
+          addUrlRow('website-urls-list');
+        }
+      }
+
+      const profContainer = $('#profile-urls-list');
+      if (profContainer) {
+        profContainer.innerHTML = '';
+        (sample.profile_urls || []).forEach(u => addUrlRow('profile-urls-list', u));
+        if (!sample.profile_urls || sample.profile_urls.length === 0) {
+          addUrlRow('profile-urls-list');
+        }
+      }
+
+      updateAnalyzeButtonState();
+      showToast(`Loaded ${sample.label}. Click "Run Analysis" or test below.`, 'success');
+
+      const formEl = $('#analyze-form');
+      if (formEl) {
+        formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+}
 
 // ── URL list manager ──────────────────────────────────────────────────────────
 function initUrlLists() {

@@ -276,22 +276,22 @@ def _check_document_text(text: str) -> list[dict]:
             )
         )
 
-    # Check for DOB
-    dob_found = []
-    for pat in DATE_OF_BIRTH_PATTERNS:
-        matches = pat.findall(text)
-        if matches:
-            for m in matches:
-                dob_found.append(m if isinstance(m, str) else str(m[0]))
-    if dob_found:
+    # Check for DOB (require explicit DOB label or birth indicator in document text)
+    dob_pat = re.compile(
+        r"(?i)\b(?:dob|date\s+of\s+birth|born\s+(?:on)?|birth\s*date)\s*[:\-]?\s*"
+        r"(?:\d{1,2}[\s\-\/\.]\w{3,9}[\s\-\/\.]\d{2,4}|\d{1,2}[\-\/\.]\d{1,2}[\-\/\.]\d{2,4}|\d{4}[\-\/\.]\d{1,2}[\-\/\.]\d{1,2})",
+    )
+    dob_matches = dob_pat.findall(text)
+    if dob_matches:
         rec = get_recommendation("DOC_TEXT_DOB_EXPOSURE")
+        sample_dob = dob_matches[0] if isinstance(dob_matches[0], str) else str(dob_matches[0])
         findings.append(
             build_finding(
                 rule_id="DOC_TEXT_DOB_EXPOSURE",
                 title="Date of birth pattern in document content",
                 category="Personal Identity",
                 severity="high",
-                evidence=f"Found in text: {dob_found[0]}",
+                evidence=f"Found in text: {sample_dob}",
                 explanation="Full dates of birth are knowledge-based identity verification factors.",
                 consequence="Attackers can use dates of birth to impersonate you with financial institutions.",
                 recommendation_action=rec["action"],
@@ -299,25 +299,38 @@ def _check_document_text(text: str) -> list[dict]:
             )
         )
 
-    # Check for Address
-    for pat in ADDRESS_PATTERNS:
-        m = pat.search(text)
-        if m:
-            rec = get_recommendation("DOC_TEXT_ADDRESS_EXPOSURE")
-            findings.append(
-                build_finding(
-                    rule_id="DOC_TEXT_ADDRESS_EXPOSURE",
-                    title="Physical address or postal code in document",
-                    category="Location Exposure",
-                    severity="medium",
-                    evidence=f"Found pattern: {m.group(0)}",
-                    explanation="Physical home or office address indicators were detected in the document body.",
-                    consequence="Exposing your physical address enables physical security risks and OSINT correlation.",
-                    recommendation_action=rec["action"],
-                    recommendation_detail=rec["detail"],
-                )
+    # Check for Address (require street address, UK postcode, or labeled postal indicator)
+    addr_evidence = None
+    if len(ADDRESS_PATTERNS) >= 4:
+        street_m = ADDRESS_PATTERNS[3].search(text)
+        if street_m:
+            addr_evidence = street_m.group(0)
+
+    if not addr_evidence and len(ADDRESS_PATTERNS) >= 2:
+        uk_m = ADDRESS_PATTERNS[1].search(text)
+        if uk_m:
+            addr_evidence = uk_m.group(0)
+
+    if not addr_evidence:
+        postal_m = re.search(r"(?i)\b(?:zip|postal|pin|pincode|address)[\s:#-]*(\d{5}(?:-\d{4})?|\d{6})\b", text)
+        if postal_m:
+            addr_evidence = postal_m.group(0)
+
+    if addr_evidence:
+        rec = get_recommendation("DOC_TEXT_ADDRESS_EXPOSURE")
+        findings.append(
+            build_finding(
+                rule_id="DOC_TEXT_ADDRESS_EXPOSURE",
+                title="Physical address or postal code in document",
+                category="Location Exposure",
+                severity="medium",
+                evidence=f"Found in text: {addr_evidence}",
+                explanation="Physical home or office address indicators were detected in the document body.",
+                consequence="Exposing your physical address enables physical security risks and OSINT correlation.",
+                recommendation_action=rec["action"],
+                recommendation_detail=rec["detail"],
             )
-            break
+        )
 
     return findings
 

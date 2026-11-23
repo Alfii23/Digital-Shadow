@@ -283,6 +283,112 @@
     </div>
   </section>
 
+  <!-- ── Alert Benchmark Laboratory ──────────────────────────────────────── -->
+  <section class="page-section" aria-labelledby="benchmark-heading" style="padding-top: 0;">
+    <div class="card" style="border-color: rgba(0, 229, 255, 0.25); background: linear-gradient(180deg, rgba(59, 10, 107, 0.15) 0%, rgba(5, 5, 5, 0.7) 100%);">
+      <div class="card-title">
+        <div class="card-icon" style="background: rgba(0, 229, 255, 0.12); color: var(--clr-cyan);">🧪</div>
+        <span id="benchmark-heading">Security Benchmark Lab &amp; Multi-Tier Test Files</span>
+        <span class="sev-badge sev-low" style="margin-left: 8px;">All Alert Tiers</span>
+      </div>
+      <p class="form-hint" style="margin-bottom: 20px;">
+        Test and verify each risk score tier. Download pre-built test documents or load 1-click test vectors to observe all alert levels in action:
+      </p>
+
+      <div class="benchmark-grid">
+        <!-- Tier 1: Clean -->
+        <div class="benchmark-card">
+          <div class="benchmark-header">
+            <span class="sev-badge sev-low" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.4);">Tier 1 &middot; Clean</span>
+            <span class="benchmark-score" style="color: #22c55e;">Score: 0</span>
+          </div>
+          <div class="benchmark-desc">
+            Sanitized baseline whitepaper. Zero author tags, timestamps, or personal data.
+          </div>
+          <div class="benchmark-actions">
+            <div class="benchmark-downloads">
+              <a href="/static/sample_files/01_CLEAN_AUDIT.pdf" download class="btn-benchmark-file" title="Download sanitized PDF">📄 PDF</a>
+              <a href="/static/sample_files/01_CLEAN_AUDIT.docx" download class="btn-benchmark-file" title="Download sanitized DOCX">📝 DOCX</a>
+            </div>
+            <button type="button" class="btn-benchmark-load" data-tier="clean">⚡ Load Vector</button>
+          </div>
+        </div>
+
+        <!-- Tier 2: Low Risk -->
+        <div class="benchmark-card">
+          <div class="benchmark-header">
+            <span class="sev-badge sev-low">Tier 2 &middot; Low</span>
+            <span class="benchmark-score" style="color: var(--sev-low);">Score: 10</span>
+          </div>
+          <div class="benchmark-desc">
+            Technical draft exposing build tool signatures (ReportLab) &amp; timestamps.
+          </div>
+          <div class="benchmark-actions">
+            <div class="benchmark-downloads">
+              <a href="/static/sample_files/02_LOW_RISK_METADATA.pdf" download class="btn-benchmark-file" title="Download Low Risk PDF">📄 PDF</a>
+              <a href="/static/sample_files/02_LOW_RISK_METADATA.docx" download class="btn-benchmark-file" title="Download Low Risk DOCX">📝 DOCX</a>
+            </div>
+            <button type="button" class="btn-benchmark-load" data-tier="low">⚡ Load Vector</button>
+          </div>
+        </div>
+
+        <!-- Tier 3: Moderate Risk -->
+        <div class="benchmark-card">
+          <div class="benchmark-header">
+            <span class="sev-badge sev-medium">Tier 3 &middot; Moderate</span>
+            <span class="benchmark-score" style="color: var(--sev-medium);">Score: 30-35</span>
+          </div>
+          <div class="benchmark-desc">
+            Author name, Word software version, internal title, and corporate email.
+          </div>
+          <div class="benchmark-actions">
+            <div class="benchmark-downloads">
+              <a href="/static/sample_files/03_MODERATE_RISK_PROFILE.pdf" download class="btn-benchmark-file" title="Download Moderate Risk PDF">📄 PDF</a>
+              <a href="/static/sample_files/03_MODERATE_RISK_PROFILE.docx" download class="btn-benchmark-file" title="Download Moderate Risk DOCX">📝 DOCX</a>
+            </div>
+            <button type="button" class="btn-benchmark-load" data-tier="moderate">⚡ Load Vector</button>
+          </div>
+        </div>
+
+        <!-- Tier 4: High Risk -->
+        <div class="benchmark-card">
+          <div class="benchmark-header">
+            <span class="sev-badge sev-high">Tier 4 &middot; High</span>
+            <span class="benchmark-score" style="color: var(--sev-high);">Score: 50</span>
+          </div>
+          <div class="benchmark-desc">
+            Author name, direct telephone line, and full residential street address.
+          </div>
+          <div class="benchmark-actions">
+            <div class="benchmark-downloads">
+              <a href="/static/sample_files/04_HIGH_RISK_CONTACT_LOCATION.pdf" download class="btn-benchmark-file" title="Download High Risk PDF">📄 PDF</a>
+              <a href="/static/sample_files/04_HIGH_RISK_CONTACT_LOCATION.docx" download class="btn-benchmark-file" title="Download High Risk DOCX">📝 DOCX</a>
+            </div>
+            <button type="button" class="btn-benchmark-load" data-tier="high">⚡ Load Vector</button>
+          </div>
+        </div>
+
+        <!-- Tier 5: Critical Risk -->
+        <div class="benchmark-card">
+          <div class="benchmark-header">
+            <span class="sev-badge sev-critical">Tier 5 &middot; Critical</span>
+            <span class="benchmark-score" style="color: var(--sev-critical);">Score: 90+</span>
+          </div>
+          <div class="benchmark-desc">
+            Sensitive filename, author, phone, verified DOB, street address &amp; vault keys.
+          </div>
+          <div class="benchmark-actions">
+            <div class="benchmark-downloads">
+              <a href="/static/sample_files/05_CRITICAL_RISK_CONFIDENTIAL_PASSWORDS.pdf" download class="btn-benchmark-file" title="Download Critical Risk PDF">📄 PDF</a>
+              <a href="/static/sample_files/05_CRITICAL_RISK_CONFIDENTIAL_PASSWORDS.docx" download class="btn-benchmark-file" title="Download Critical Risk DOCX">📝 DOCX</a>
+            </div>
+            <button type="button" class="btn-benchmark-load" data-tier="critical">⚡ Load Vector</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ── Results ─────────────────────────────────────────────────────────── -->
   <section id="results-section" aria-labelledby="results-heading" aria-live="polite">
 

@@ -1693,3 +1693,101 @@ input, textarea, select { font-family: inherit; }
   border-color: transparent;
   box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
 }
+
+/* ── Benchmark Laboratory ─────────────────────────────────────────────────── */
+.benchmark-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.benchmark-card {
+  background: rgba(5, 5, 5, 0.75);
+  border: 1px solid rgba(59, 10, 107, 0.5);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.benchmark-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 229, 255, 0.55);
+  box-shadow: 0 4px 18px rgba(0, 229, 255, 0.15);
+}
+
+.benchmark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.benchmark-score {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.benchmark-desc {
+  font-size: 0.8rem;
+  color: var(--txt-secondary);
+  line-height: 1.45;
+  margin-bottom: 14px;
+  flex-grow: 1;
+}
+
+.benchmark-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.benchmark-downloads {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-benchmark-file {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--clr-cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.35);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+
+.btn-benchmark-file:hover {
+  background: rgba(0, 229, 255, 0.25);
+  border-color: var(--clr-cyan);
+  color: #fff;
+}
+
+.btn-benchmark-load {
+  width: 100%;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(59, 10, 107, 0.7);
+  border: 1px solid rgba(59, 10, 107, 0.9);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-benchmark-load:hover {
+  background: var(--clr-amethyst);
+  border-color: var(--clr-cyan);
+  color: var(--clr-cyan);
+}
